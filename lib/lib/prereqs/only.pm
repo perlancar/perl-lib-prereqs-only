@@ -215,9 +215,10 @@ Other options that can be passed to the pragma:
 
 =item * allow_core => bool (default: 1)
 
-This will be passed to lib::filter. If you specify core modules in your prereqs,
-perhaps you want to set this to 0 (but currently XS modules won't work with
-C<allow_core> set to 1.
+This will be passed to lib::filter. By default (allow_core=1), core modules will
+also be allowed. If you specify core modules in your prereqs and want to test
+that, perhaps you want to set this to 0 (but currently XS modules won't work
+with C<allow_core> set to 0).
 
 =item * debug => bool (default: 0)
 
