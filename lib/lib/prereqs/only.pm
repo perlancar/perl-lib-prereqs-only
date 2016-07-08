@@ -19,12 +19,23 @@ sub import {
     my $allow_test_suggests      = delete $opts{TestSuggests}      // 0;
     my $allow_core               = delete $opts{allow_core}        // 0;
     my $debug                    = delete $opts{debug}             // 0;
+    my $allow                    = delete $opts{allow};
+    my $disallow                 = delete $opts{disallow};
     for (keys %opts) {
         die "Unknown options '$_', see documentation for known options";
     }
     my $dbgh = "[lib::prereqs::only]";
 
+    #print "D:ENV:\n", map {"  $_=$ENV{$_}\n"} sort keys %ENV;
+    my $running_under_prove = do {
+        ($ENV{_} // '') =~ m![/\\]prove\z! ? 1:0;
+    };
+    warn "$dbgh we are running under prove\n" if $running_under_prove && $debug;
+
+    my %allow;
+    my @allow_re;
     my @disallow;
+
     unless ($allow_core) {
         # these are modules required by lib::filter itself, so they are already
         # loaded. we need to disallow them explicitly.
@@ -34,8 +45,39 @@ sub import {
             "lib::filter",
         );
     }
+    if ($running_under_prove) {
+        # modules required by prove
+        $allow{$_} = 1 for qw(
+                                 App::Prove
+                                 TAP::Harness TAP::Harness::Env
+                                 constant
+                                 TAP::Object
+                                 Text::ParseWords
+                                 Exporter
+                                 File::Spec
+                                 File::Path
+                                 IO::Handle
+                                 Symbol
+                                 SelectSaver
+                                 IO
+                                 TAP::Formatter::Console
+                                 TAP::Formatter::Base
+                                 POSIX
+                                 Fcntl
+                                 Tie::Hash
+                                 TAP::Formatter::Color
+                                 TAP::Parser::Aggregator
+                                 Benchmark
+                                 TAP::Parser::Scheduler
+                                 TAP::Parser::Scheduler::Job
+                                 TAP::Parser::Scheduler::Spinner
+                                 TAP::Parser
+                                 TAP::Parser::Grammar
+                                 TAP::Parser::ResultFactory
+                         );
+        push @allow_re, '^File::Spec::';
+    }
 
-    my %allow;
     {
         open my($fh), "<", "dist.ini"
             or die "Can't open dist.ini in current directory: $!";
@@ -95,12 +137,19 @@ sub import {
             if $debug;
     }
 
+    # allow
+    if (defined $allow) {
+        $allow{$_} = 1 for split /;/, $allow;
+    }
+
     lib::filter->import(
         allow_core    => $allow_core,
         allow_noncore => 0,
         debug         => $debug,
-        disallow      => join(';', @disallow),
+        disallow      => join(';', @disallow,
+                              (defined $disallow ? split(/;/, $disallow) : ())),
         allow         => join(';', sort keys %allow),
+        (allow_re     => join("|", @allow_re)) x !!@allow_re,
     );
 }
 
@@ -127,24 +176,6 @@ locateable/loadable. It is useful while testing L<Dist::Zilla>-based
 distribution: it tests that the prerequisites you specify in F<dist.ini> is
 already complete (at least to run the test suite).
 
-Caveats:
-
-=over
-
-=item * To avoid the use of any module, F<dist.ini> is parsed by regex.
-
-This should be okay as long as your F<dist.ini> is pretty regular.
-
-=item * The pragma must be loaded using PERL5OPT mechanism.
-
-Using:
-
- % prove -Mlib::prereqs::only
-
-doesn't work.
-
-=back
-
 By default, only prereqs specified in RuntimeRequires and TestRequires sections
 are allowed. But you can include other sections too if you want:
 
@@ -164,6 +195,16 @@ prereqs, you'll want to set this to 1.
 =item * debug => bool (default: 0)
 
 If set to 1, will print debug messages.
+
+=item * allow => str
+
+Specify an extra set of modules to allow. Value is a semicolon-separated list of
+module names.
+
+=item * disallow => str
+
+Specify an extra set of modules to disallow. Value is a semicolon-separated list
+of module names.
 
 =back
 
