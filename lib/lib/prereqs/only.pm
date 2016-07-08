@@ -17,10 +17,12 @@ sub import {
     my $allow_test_requires      = delete $opts{TestRequires}      // 1;
     my $allow_test_recommends    = delete $opts{TestRecommends}    // 0;
     my $allow_test_suggests      = delete $opts{TestSuggests}      // 0;
-    my $allow_core               = delete $opts{allow_core}        // 0;
+    my $allow_core               = delete $opts{allow_core}        // 1;
     my $debug                    = delete $opts{debug}             // 0;
     my $allow                    = delete $opts{allow};
+    my $allow_re                 = delete $opts{allow_re};
     my $disallow                 = delete $opts{disallow};
+    my $disallow_re              = delete $opts{disallow_re};
     for (keys %opts) {
         die "Unknown options '$_', see documentation for known options";
     }
@@ -33,49 +35,13 @@ sub import {
     warn "$dbgh we are running under prove\n" if $running_under_prove && $debug;
 
     my %allow;
-    my @allow_re;
-    my @disallow;
+    my %disallow;
 
-    unless ($allow_core) {
-        # these are modules required by lib::filter itself, so they are already
-        # loaded. we need to disallow them explicitly.
-        push @disallow, (
-            "strict", "warnings", "warnings::register",
-            "Config", "vars",
-            "lib::filter",
-        );
-    }
     if ($running_under_prove) {
         # modules required by prove
         $allow{$_} = 1 for qw(
                                  App::Prove
-                                 TAP::Harness TAP::Harness::Env
-                                 constant
-                                 TAP::Object
-                                 Text::ParseWords
-                                 Exporter
-                                 File::Spec
-                                 File::Path
-                                 IO::Handle
-                                 Symbol
-                                 SelectSaver
-                                 IO
-                                 TAP::Formatter::Console
-                                 TAP::Formatter::Base
-                                 POSIX
-                                 Fcntl
-                                 Tie::Hash
-                                 TAP::Formatter::Color
-                                 TAP::Parser::Aggregator
-                                 Benchmark
-                                 TAP::Parser::Scheduler
-                                 TAP::Parser::Scheduler::Job
-                                 TAP::Parser::Scheduler::Spinner
-                                 TAP::Parser
-                                 TAP::Parser::Grammar
-                                 TAP::Parser::ResultFactory
                          );
-        push @allow_re, '^File::Spec::';
     }
 
     {
@@ -93,22 +59,48 @@ sub import {
             } elsif ($line =~ /\A\s*([^;][^=]*?)\s*=\s*(.*?)\s*\z/) {
                 ($key, $value) = ($1, $2);
                 next if $key eq 'perl';
-                if ($cur_section =~ m!\A(Prereqs|Prereqs\s*/\s*RuntimeRequires)\z! && $allow_runtime_requires) {
-                    $allow{$key} = 1;
-                } elsif ($cur_section =~ m!\A(Prereqs\s*/\s*RuntimeRecommends)\z!  && $allow_runtime_recommends) {
-                    $allow{$key} = 1;
-                } elsif ($cur_section =~ m!\A(Prereqs\s*/\s*RuntimeSuggests)\z!    && $allow_runtime_suggests) {
-                    $allow{$key} = 1;
-                } elsif ($cur_section =~ m!\A(Prereqs\s*/\s*TestRequires)\z!       && $allow_test_requires) {
-                    $allow{$key} = 1;
-                } elsif ($cur_section =~ m!\A(Prereqs\s*/\s*TestRecommends)\z!     && $allow_test_recommends) {
-                    $allow{$key} = 1;
-                } elsif ($cur_section =~ m!\A(Prereqs\s*/\s*TestSuggests)\z!       && $allow_test_suggests) {
-                    $allow{$key} = 1;
+                if ($cur_section =~ m!\A(Prereqs|Prereqs\s*/\s*RuntimeRequires)\z!) {
+                    if ($allow_runtime_requires) {
+                        $allow{$key} = 1;
+                    } else {
+                        $disallow{$key} = 1;
+                    }
+                } elsif ($cur_section =~ m!\A(Prereqs\s*/\s*RuntimeRecommends)\z!) {
+                    if ($allow_runtime_recommends) {
+                        $allow{$key} = 1;
+                    } else {
+                        $disallow{$key} = 1;
+                    }
+                } elsif ($cur_section =~ m!\A(Prereqs\s*/\s*RuntimeSuggests)\z!) {
+                    if ($allow_runtime_suggests) {
+                        $allow{$key} = 1;
+                    } else {
+                        $disallow{$key} = 1;
+                    }
+                } elsif ($cur_section =~ m!\A(Prereqs\s*/\s*TestRequires)\z!) {
+                    if ($allow_test_requires) {
+                        $allow{$key} = 1;
+                    } else {
+                        $disallow{$key} = 1;
+                    }
+                } elsif ($cur_section =~ m!\A(Prereqs\s*/\s*TestRecommends)\z!) {
+                    if ($allow_test_recommends) {
+                        $allow{$key} = 1;
+                    } else {
+                        $disallow{$key} = 1;
+                    }
+                } elsif ($cur_section =~ m!\A(Prereqs\s*/\s*TestSuggests)\z!) {
+                    if ($allow_test_suggests) {
+                        $allow{$key} = 1;
+                    } else {
+                        $disallow{$key} = 1;
+                    }
                 }
             }
         }
-        warn "$dbgh modules collected from prereqs in dist.ini: ", join(";", sort keys %allow), "\n"
+        warn "$dbgh modules collected from prereqs in dist.ini to be allowed: ", join(";", sort keys %allow), "\n"
+            if $debug;
+        warn "$dbgh modules collected from prereqs in dist.ini to be disallowed: ", join(";", sort keys %disallow), "\n"
             if $debug;
     }
 
@@ -142,14 +134,30 @@ sub import {
         $allow{$_} = 1 for split /;/, $allow;
     }
 
+    # we should not use disallow because that overrides allow
+    #
+    #unless ($allow_core) {
+    #    # these are modules required by lib::filter itself, so they are already
+    #    # loaded. we need to disallow them explicitly.
+    #    for ("strict", "warnings",
+    #         # "warnings::register"
+    #         "Config",
+    #         # "vars",
+    #         "lib::filter") {
+    #        $disallow{$_} = 1 unless $allow{$_};
+    #    }
+    #}
+
     lib::filter->import(
         allow_core    => $allow_core,
         allow_noncore => 0,
         debug         => $debug,
-        disallow      => join(';', @disallow,
+        disallow      => join(';', (sort keys %disallow),
                               (defined $disallow ? split(/;/, $disallow) : ())),
+        (disallow_re  => $disallow_re) x !!(defined $disallow_re),
         allow         => join(';', sort keys %allow),
-        (allow_re     => join("|", @allow_re)) x !!@allow_re,
+        (allow_re     => $allow_re) x !!(defined $allow_re),
+        allow_is_recursive => 1,
     );
 }
 
@@ -167,6 +175,10 @@ sub unimport {
  % cd perl-Your-Dist
  % PERL5OPT=-Mlib::prereqs::only prove -l
 
+To allow RuntimeRecommends prereqs too:
+
+ % PERL5OPT=-Mlib::prereqs::only=RuntimeRecommends,1 prove -l
+
 
 =head1 DESCRIPTION
 
@@ -175,6 +187,20 @@ F<lib/>, and uses L<lib::filter> to only allow those modules to be
 locateable/loadable. It is useful while testing L<Dist::Zilla>-based
 distribution: it tests that the prerequisites you specify in F<dist.ini> is
 already complete (at least to run the test suite).
+
+Some caveats:
+
+=over
+
+=item * This pragma currently only works via C<PERL5OPT>
+
+Using:
+
+ % prove -Mlib::prereqs::only ...
+
+currently does not work.
+
+=back
 
 By default, only prereqs specified in RuntimeRequires and TestRequires sections
 are allowed. But you can include other sections too if you want:
@@ -187,10 +213,11 @@ Other options that can be passed to the pragma:
 
 =over
 
-=item * allow_core => bool (default: 0)
+=item * allow_core => bool (default: 1)
 
-This will be passed to lib::filter. If you don't specify core modules in your
-prereqs, you'll want to set this to 1.
+This will be passed to lib::filter. If you specify core modules in your prereqs,
+perhaps you want to set this to 0 (but currently XS modules won't work with
+C<allow_core> set to 1.
 
 =item * debug => bool (default: 0)
 
@@ -199,12 +226,20 @@ If set to 1, will print debug messages.
 =item * allow => str
 
 Specify an extra set of modules to allow. Value is a semicolon-separated list of
-module names.
+module names. Will be passed to lib::filter.
 
 =item * disallow => str
 
 Specify an extra set of modules to disallow. Value is a semicolon-separated list
-of module names.
+of module names. Will be passed to lib::filter.
+
+=item * allow_re => str
+
+Specify module pattern to allow. Will be passed to lib::filter.
+
+=item * disallow_re => str
+
+Specify module pattern to disallow. Will be passed to lib::filter.
 
 =back
 
