@@ -198,7 +198,7 @@ Using:
 
  % prove -Mlib::prereqs::only ...
 
-currently does not work.
+currently does not work, because the test script is run in a separate process.
 
 =back
 
