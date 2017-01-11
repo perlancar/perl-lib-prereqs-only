@@ -166,18 +166,30 @@ sub unimport {
 }
 
 1;
-# ABSTRACT: Only allow modules specified in prereqs in dist.ini to be locateable/loadable
+# ABSTRACT: Only allow loading modules specified in prereqs in dist.ini
 
 =for Pod::Coverage .+
 
 =head1 SYNOPSIS
 
- % cd perl-Your-Dist
+To test your distribution:
+
+ % cd Your-Dist
  % PERL5OPT=-Mlib::prereqs::only prove -l
 
 To allow RuntimeRecommends prereqs too:
 
  % PERL5OPT=-Mlib::prereqs::only=RuntimeRecommends,1 prove -l
+
+To test script:
+
+ % PERL5OPT=-Mlib::prereqs::only some-script
+
+To test script in your distribution (as well as turn debugging on, and allowing
+core modules even though they are not specified in F<dist.ini>):
+
+ % cd Your-Dist
+ % perl -Mlib::prereqs::only=debug,1,allow_core,1 -Ilib bin/some-script
 
 
 =head1 DESCRIPTION
@@ -192,7 +204,7 @@ Some caveats:
 
 =over
 
-=item * This pragma currently only works via C<PERL5OPT>
+=item * For using with C<prove>, this pragma currently only works via C<PERL5OPT>
 
 Using:
 
