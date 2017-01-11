@@ -148,7 +148,7 @@ sub import {
     #    }
     #}
 
-    lib::filter->import(
+    my @lf_args = (
         allow_core    => $allow_core,
         allow_noncore => 0,
         debug         => $debug,
@@ -159,6 +159,8 @@ sub import {
         (allow_re     => $allow_re) x !!(defined $allow_re),
         allow_is_recursive => 1,
     );
+    warn "$dbgh importing lib::filter with arguments: ", join(", ", @lf_args);
+    lib::filter->import(@lf_args);
 }
 
 sub unimport {
