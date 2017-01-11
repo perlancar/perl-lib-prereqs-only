@@ -1,5 +1,7 @@
 0.004   2017-01-11 (PERLANCAR)
 
+	- No functional changes.
+
 	- Derp, only show debug message under debug=1.
 
 
