@@ -159,7 +159,8 @@ sub import {
         (allow_re     => $allow_re) x !!(defined $allow_re),
         allow_is_recursive => 1,
     );
-    warn "$dbgh importing lib::filter with arguments: ", join(", ", @lf_args);
+    warn "$dbgh importing lib::filter with arguments: ", join(", ", @lf_args)
+        if $debug;
     lib::filter->import(@lf_args);
 }
 
