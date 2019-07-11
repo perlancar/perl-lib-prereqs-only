@@ -1,11 +1,11 @@
-0.004   2017-01-11 (PERLANCAR)
+0.004   2017-01-11  Released-By: PERLANCAR
 
 	- No functional changes.
 
 	- Derp, only show debug message under debug=1.
 
 
-0.003   2017-01-11 (PERLANCAR)
+0.003   2017-01-11  Released-By: PERLANCAR
 
 	- No functional changes.
 
@@ -15,13 +15,13 @@
         - [debugging] Add debug message: lib::filter import arguments.
 
 
-0.002   2016-07-08 (PERLANCAR)
+0.002   2016-07-08  Released-By: PERLANCAR
 
 	- No functional changes.
 
 	- [doc] Fix documentation about allow_core.
 
 
-0.001   2016-07-08 (PERLANCAR)
+0.001   2016-07-08  Released-By: PERLANCAR
 
         - First release.
